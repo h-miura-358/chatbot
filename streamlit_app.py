@@ -50,7 +50,7 @@ if prompt := st.chat_input("What is up?"):
             )
         )
 
-    # 7. チャットセッションの作成とメッセージ送信
+    # 7. チャットセッションの作成とメッセージ送信（エラーハンドリング強化）
     try:
         chat = client.chats.create(
             model="gemini-3.8-flash",
@@ -67,4 +67,8 @@ if prompt := st.chat_input("What is up?"):
         st.session_state.messages.append({"role": "assistant", "content": answer})
         
     except Exception as e:
-        st.error(f"エラーが発生しました: {e}")
+        error_str = str(e)
+        if "503" in error_str or "UNAVAILABLE" in error_str:
+            st.warning("⚠️ 現在 Gemini のサーバーが大変混み合っています（一時的な高負荷）。少し時間を置いてから、もう一度メッセージを送信してください。", icon="⏳")
+        else:
+            st.error(f"エラーが発生しました: {e}")

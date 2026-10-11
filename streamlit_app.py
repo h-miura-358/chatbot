@@ -6,13 +6,10 @@ from google.genai import types
 st.title("💬 Gemini Chatbot")
 st.write(
     "This is a simple chatbot that uses Google's Gemini model to generate responses. "
-    "To use this app, you need to provide a Gemini API key, which you can get [Google AI Studio](https://aistudio.google.com/). "
-    "You can also store the API key in `./.streamlit/secrets.toml` as `GEMINI_API_KEY`."
+    "To use this app, you need to provide a Gemini API key."
 )
 
-# APIキーの取得優先順位: 
-# 1. st.secrets (Streamlit Cloud等の場合)
-# 2. 画面上のテキスト入力
+# APIキーの取得（st.secrets または 画面入力）
 api_key = None
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -20,7 +17,7 @@ else:
     api_key = st.text_input("Gemini API Key", type="password")
 
 if not api_key:
-    st.info("Please add your Gemini API key to continue (or set it in secrets.toml).", icon="🗝️")
+    st.info("Please add your Gemini API key to continue.", icon="🗝️")
 else:
     # 1. Gemini クライアントの初期化
     client = genai.Client(api_key=api_key)
@@ -41,11 +38,9 @@ else:
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # 5. これまでの履歴を Gemini の形式（Contents）に変換してチャットセッションを構築
-        # systemロールや過去の履歴を正しく渡すための準備
+        # 5. これまでの履歴を Gemini の形式に変換
         chat_history = []
-        for m in st.session_state.messages[:-1]: # 最新のpromptを除く履歴
-            # Gemini SDKのロール名は 'user' または 'model'
+        for m in st.session_state.messages[:-1]:
             role = "user" if m["role"] == "user" else "model"
             chat_history.append(
                 types.Content(
@@ -54,21 +49,22 @@ else:
                 )
             )
 
-        # チャットセッションを開始
-        chat = client.chats.create(
-            model="gemini-2.5-flash",
-            history=chat_history
-        )
+        # 6. チャットセッションの作成とメッセージ送信
+        try:
+            chat = client.chats.create(
+                model="gemini-2.5-flash",
+                history=chat_history
+            )
 
-        # 6. ストリーミング出力を処理するジェネレータ
-        def generate_response():
-            response_stream = chat.send_message(prompt, stream=True)
-            for chunk in response_stream:
-                if chunk.text:
-                    yield chunk.text
+            with st.chat_message("assistant"):
+                with st.spinner("考えています..."):
+                    # ストリーミングを使わず、一度にレスポンスを取得
+                    response = chat.send_message(prompt)
+                    answer = response.text
+                    st.markdown(answer)
 
-        # 7. アシスタントの返答をストリーミング表示し、履歴に保存
-        with st.chat_message("assistant"):
-            response = st.write_stream(generate_response())
+            # アシスタントの返答を履歴に追加
+            st.session_state.messages.append({"role": "assistant", "content": answer})
             
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        except Exception as e:
+            st.error(f"エラーが発生しました: {e}")

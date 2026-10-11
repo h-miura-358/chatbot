@@ -49,16 +49,15 @@ else:
                 )
             )
 
-        # 6. チャットセッションの作成とメッセージ送信
+        # 6. チャットセッションの作成とメッセージ送信（モデルを gemini-3.8-flash に指定）
         try:
             chat = client.chats.create(
-                model="gemini-2.5-flash",
+                model="gemini-3.8-flash",
                 history=chat_history
             )
 
             with st.chat_message("assistant"):
                 with st.spinner("考えています..."):
-                    # ストリーミングを使わず、一度にレスポンスを取得
                     response = chat.send_message(prompt)
                     answer = response.text
                     st.markdown(answer)
